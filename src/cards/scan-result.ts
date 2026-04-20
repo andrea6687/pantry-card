@@ -181,6 +181,7 @@ export default class ScanResult extends BaseCard {
             this._fetching = false;
             if (!item) {
                 this._error = `Prodotto "${barcode}" non trovato in Open Food Facts`;
+                this._scheduleErrorReset();
                 this.parent.requestUpdate();
                 return this._renderError(this._error, 'mdi:help-circle', barcode);
             }
@@ -191,29 +192,56 @@ export default class ScanResult extends BaseCard {
             this._fetching = false;
             const msg = (e as Error).message;
             this._error = msg === 'TIMEOUT'
-                ? 'Open Food Facts non risponde (timeout). Riprova.'
+                ? 'Open Food Facts non risponde (timeout)'
                 : msg === 'NETWORK'
                 ? 'Nessuna connessione internet'
                 : `Errore Open Food Facts (${msg})`;
+            this._scheduleErrorReset();
             this.parent.requestUpdate();
             return this._renderError(this._error, 'mdi:wifi-off', barcode);
         }
+    }
+
+    private _errorResetTimer: ReturnType<typeof setTimeout> | null = null;
+
+    private _scheduleErrorReset(): void {
+        if (this._errorResetTimer) clearTimeout(this._errorResetTimer);
+        this._errorResetTimer = setTimeout(() => this._resetToPlaceholder(), 5000);
+    }
+
+    private _resetToPlaceholder(): void {
+        this._error = '';
+        this._lastBarcode = '';
+        this._currentItem = null;
+        this._fetching = false;
+        this._errorResetTimer = null;
+        this.hass?.callService('input_text', 'set_value', {
+            entity_id: this.config.barcode_entity,
+            value: '',
+        }).catch(() => {});
+        this.parent.requestUpdate();
     }
 
     private _renderError(msg: string, icon: string, barcode: string): HTMLTemplateResult {
         return html`
             <div class="scan-error">
                 <ha-icon icon="${icon}"></ha-icon> ${msg}
+                <span class="error-countdown"> — reset in 5s</span>
             </div>
             <div class="actions" style="margin-top:12px">
                 <mwc-button outlined @click=${() => this._retry(barcode)}>
                     <ha-icon icon="mdi:refresh"></ha-icon>&nbsp;Riprova
+                </mwc-button>
+                <mwc-button outlined @click=${() => this._resetToPlaceholder()}>
+                    <ha-icon icon="mdi:barcode-scan"></ha-icon>&nbsp;Nuova scansione
                 </mwc-button>
             </div>
         `;
     }
 
     private _retry(barcode: string): void {
+        if (this._errorResetTimer) clearTimeout(this._errorResetTimer);
+        this._errorResetTimer = null;
         this._lastBarcode = '';
         this._error = '';
         this._fetching = false;

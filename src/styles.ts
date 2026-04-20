@@ -40,7 +40,9 @@ export const styles = css`
         gap: 8px;
         border-radius: 4px;
         background: var(--pantry-warning-bg);
+        flex-wrap: wrap;
     }
+    .error-countdown { font-size: 0.8em; opacity: 0.7; }
 
     /* ── Scan result ── */
     .scan-result { padding: 4px 0; }
