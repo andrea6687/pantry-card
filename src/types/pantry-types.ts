@@ -24,6 +24,24 @@ export interface NutritionInfo {
     salt?: number;
 }
 
+export enum PantryCategory {
+    Latticini = 'Latticini',
+    CarnePerace = 'Carne e pesce',
+    FruttaVerdura = 'Frutta e verdura',
+    PaneCereali = 'Pane e cereali',
+    DolciSnack = 'Dolci e snack',
+    Bevande = 'Bevande',
+    Condimenti = 'Condimenti',
+    Surgelati = 'Surgelati',
+    Altro = 'Altro',
+}
+
+export enum PantrySort {
+    Name = 'name',
+    Expiry = 'expiry',
+    Added = 'added',
+}
+
 export interface PantryItem {
     barcode: string;
     name: string;
@@ -34,6 +52,9 @@ export interface PantryItem {
     ingredients?: string;
     added_at: string;
     quantity?: number;
+    purchase_date?: string;
+    expiry_date?: string;
+    category?: string;
 }
 
 export interface OFFProduct {

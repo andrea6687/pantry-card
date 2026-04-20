@@ -168,6 +168,49 @@ export const styles = css`
 
     .actions { gap: 8px; }
 
+    /* ── Add form ── */
+    .add-form {
+        margin-top: 16px;
+        padding: 14px;
+        background: var(--secondary-background-color);
+        border-radius: 8px;
+        border-left: 4px solid var(--primary-color, #03a9f4);
+    }
+    .add-form h3 {
+        margin: 0 0 12px;
+        font-size: 1em;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .form-field { display: flex; flex-direction: column; gap: 4px; }
+    .form-field label { font-size: 0.8em; color: var(--secondary-text-color); font-weight: 500; }
+    .form-input, .form-select {
+        padding: 7px 10px;
+        border: 1px solid var(--divider-color);
+        border-radius: 6px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+        font-size: 0.9em;
+    }
+    .qty-control { display: flex; align-items: center; gap: 4px; }
+    .qty-control .qty-value { min-width: 28px; text-align: center; font-weight: bold; font-size: 1.1em; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .saved-feedback {
+        margin-top: 10px;
+        color: var(--pantry-success);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+    }
+
     /* ── Pantry list ── */
     .pantry-warning-summary {
         background: var(--pantry-warning-bg);
@@ -182,6 +225,93 @@ export const styles = css`
         color: var(--pantry-warning);
     }
 
+    /* ── Toolbar ── */
+    .pantry-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+        align-items: center;
+    }
+    .search-wrap {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: 1;
+        min-width: 150px;
+        border: 1px solid var(--divider-color);
+        border-radius: 20px;
+        padding: 4px 10px;
+        background: var(--secondary-background-color);
+    }
+    .search-input {
+        border: none;
+        background: transparent;
+        color: var(--primary-text-color);
+        font-size: 0.9em;
+        outline: none;
+        width: 100%;
+    }
+    .sort-btns { display: flex; gap: 4px; }
+    .sort-btn {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 4px 8px;
+        border: 1px solid var(--divider-color);
+        border-radius: 16px;
+        background: transparent;
+        color: var(--secondary-text-color);
+        font-size: 0.8em;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .sort-btn.active {
+        background: var(--primary-color, #03a9f4);
+        color: white;
+        border-color: transparent;
+    }
+    .sort-btn ha-icon { --mdc-icon-size: 14px; }
+
+    /* ── Category chips ── */
+    .category-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+    .cat-chip {
+        padding: 3px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--divider-color);
+        background: transparent;
+        color: var(--secondary-text-color);
+        font-size: 0.82em;
+        cursor: pointer;
+    }
+    .cat-chip.active {
+        background: var(--primary-color, #03a9f4);
+        color: white;
+        border-color: transparent;
+    }
+
+    /* ── Expiry banner ── */
+    .expiry-banner {
+        background: var(--pantry-warning-bg);
+        border-left: 4px solid var(--pantry-warning);
+        padding: 8px 12px;
+        border-radius: 0 4px 4px 0;
+        margin-bottom: 10px;
+        font-size: 0.9em;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--pantry-warning);
+    }
+
+    .no-results { color: var(--secondary-text-color); text-align: center; padding: 16px; }
+
+    /* ── Pantry items ── */
     .pantry-item {
         display: flex;
         align-items: center;
@@ -191,6 +321,8 @@ export const styles = css`
     }
     .pantry-item:last-child { border-bottom: none; }
     .pantry-item.has-warning { background: var(--pantry-warning-bg); border-radius: 4px; padding: 8px; }
+    .pantry-item.expiry-expired { border-left: 3px solid #f44336; }
+    .pantry-item.expiry-soon { border-left: 3px solid #ff9800; }
 
     .item-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
     .item-thumb-icon { --mdc-icon-size: 36px; color: var(--secondary-text-color); flex-shrink: 0; }
@@ -200,17 +332,41 @@ export const styles = css`
         display: flex;
         flex-direction: column;
         min-width: 0;
+        gap: 2px;
     }
+    .item-name-row { display: flex; align-items: center; gap: 4px; }
     .item-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .warning-icon { color: var(--pantry-warning); --mdc-icon-size: 16px; flex-shrink: 0; }
     .item-brand { font-size: 0.82em; color: var(--secondary-text-color); }
-    .item-allergen-badge {
-        font-size: 0.78em;
-        color: var(--pantry-warning);
+
+    .item-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+    .cat-badge {
+        font-size: 0.75em;
+        padding: 1px 7px;
+        border-radius: 10px;
+        background: var(--primary-color, #03a9f4);
+        color: white;
+    }
+    .expiry-badge {
+        font-size: 0.75em;
+        padding: 1px 7px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         gap: 2px;
     }
-    .item-allergen-badge ha-icon { --mdc-icon-size: 13px; }
+    .expiry-badge ha-icon { --mdc-icon-size: 12px; }
+    .expiry-badge-ok { background: #e8f5e9; color: #2e7d32; }
+    .expiry-badge-soon { background: #fff3e0; color: #e65100; }
+    .expiry-badge-expired { background: #ffebee; color: #c62828; font-weight: bold; }
+    .purchase-badge {
+        font-size: 0.75em;
+        color: var(--secondary-text-color);
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+    .purchase-badge ha-icon { --mdc-icon-size: 12px; }
 
     .item-qty {
         display: flex;
