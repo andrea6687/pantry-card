@@ -73,11 +73,13 @@ export default class PantryCard extends LitElement {
     }
 
     protected shouldUpdate(changedProps: PropertyValues): boolean {
+        /* requestUpdate() manuale → changedProps vuoto → renderizza subito */
+        if (changedProps.size === 0) return true;
         if (changedProps.has('card') || changedProps.has('config')) return true;
         if (changedProps.has('_hass')) {
             const oldHass = changedProps.get('_hass') as HomeAssistant | undefined;
             if (!oldHass) return true;
-            /* ri-renderizza solo se cambia lo stato del barcode entity */
+            /* aggiornamento HA: renderizza solo se cambia il barcode entity */
             const entity = this.config?.barcode_entity;
             if (!entity) return false;
             return oldHass.states[entity]?.state !== this._hass?.states[entity]?.state;
