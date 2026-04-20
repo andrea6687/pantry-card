@@ -379,6 +379,7 @@ export default class ScanResult extends BaseCard {
             category: this._formCategory || undefined,
         };
         this.addItem(toSave);
+        this.syncExpiryToHA();
         this._showForm = false;
         this._savedFeedback = true;
         this.parent.requestUpdate();

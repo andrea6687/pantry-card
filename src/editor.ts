@@ -53,6 +53,15 @@ export class PantryCardEditor extends LitElement implements LovelaceCardEditor {
                     <input type="text" data-key="barcode_entity" .value=${this._config.barcode_entity || ''} @change=${this._changed} placeholder="input_text.barcode_scanner">
                 </div>
                 <div class="row">
+                    <label>Entity scadenze (per automazioni HA)</label>
+                    <input type="text" data-key="expiry_entity" .value=${this._config.expiry_entity || ''} @change=${this._changed} placeholder="input_text.pantry_expiring">
+                    <small>input_text che riceve i prodotti in scadenza (max 255 char)</small>
+                </div>
+                <div class="row">
+                    <label>Giorni avviso scadenza</label>
+                    <input type="number" data-key="expiry_warning_days" .value=${String(this._config.expiry_warning_days ?? 7)} @change=${this._changed} placeholder="7">
+                </div>
+                <div class="row">
                     <label>Allergeni da monitorare (separati da virgola)</label>
                     <input type="text" data-key="allergens"
                         .value=${(this._config.allergens || []).join(', ')}

@@ -10,6 +10,8 @@ export interface PantryCardConfig {
     barcode_entity: string;
     allergens?: string[];
     title?: string;
+    expiry_entity?: string;
+    expiry_warning_days?: number;
     hass?: HomeAssistant;
 }
 
