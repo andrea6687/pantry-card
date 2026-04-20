@@ -1,4 +1,5 @@
 import { html, HTMLTemplateResult } from 'lit';
+import { until } from 'lit-html/directives/until.js';
 import { BaseCard } from './base-card';
 import { PantryItem, PantrySort } from '../types/pantry-types';
 
@@ -6,10 +7,18 @@ export default class PantryList extends BaseCard {
     private _sort: PantrySort = PantrySort.Name;
     private _filterCategory = '';
     private _search = '';
+    private _loaded = false;
 
     cardSize(): number { return 10; }
 
     render(): HTMLTemplateResult {
+        if (this.getPantryItems().length === 0 && !this._loaded) {
+            return html`${until(
+                this.loadPantryItems().then(() => { this._loaded = true; this.parent.requestUpdate(); }),
+                html`<div class="loading"><ha-circular-progress active indeterminate></ha-circular-progress><p>Caricamento dispensa...</p></div>`
+            )}`;
+        }
+
         const allItems = this.getPantryItems();
 
         if (!allItems.length) {
@@ -217,16 +226,16 @@ export default class PantryList extends BaseCard {
 
     /* ── CRUD ── */
 
-    private _increase(item: PantryItem): void {
-        const items = this.getPantryItems();
+    private async _increase(item: PantryItem): Promise<void> {
+        const items = [...this.getPantryItems()];
         const idx = items.findIndex(i => i.barcode === item.barcode);
         if (idx >= 0) items[idx].quantity = (items[idx].quantity || 1) + 1;
-        this.savePantryItems(items);
+        await this.savePantryItems(items);
         this._notify();
     }
 
-    private _decrease(item: PantryItem): void {
-        const items = this.getPantryItems();
+    private async _decrease(item: PantryItem): Promise<void> {
+        const items = [...this.getPantryItems()];
         const idx = items.findIndex(i => i.barcode === item.barcode);
         if (idx >= 0) {
             if ((items[idx].quantity || 1) <= 1) {
@@ -235,12 +244,12 @@ export default class PantryList extends BaseCard {
                 items[idx].quantity = (items[idx].quantity || 1) - 1;
             }
         }
-        this.savePantryItems(items);
+        await this.savePantryItems(items);
         this._notify();
     }
 
-    private _remove(barcode: string): void {
-        this.removeItem(barcode);
+    private async _remove(barcode: string): Promise<void> {
+        await this.removeItem(barcode);
         this.syncExpiryToHA();
         this._notify();
     }

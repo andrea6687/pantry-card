@@ -423,7 +423,7 @@ export default class ScanResult extends BaseCard {
         this.parent.requestUpdate();
     }
 
-    private _saveItem(item: PantryItem): void {
+    private async _saveItem(item: PantryItem): Promise<void> {
         const toSave: PantryItem = {
             ...item,
             quantity: this._formQty,
@@ -431,7 +431,7 @@ export default class ScanResult extends BaseCard {
             expiry_date: this._formExpiry || undefined,
             category: this._formCategory || undefined,
         };
-        this.addItem(toSave);
+        await this.addItem(toSave);
         this.syncExpiryToHA();
 
         /* reset scanner */
