@@ -180,19 +180,44 @@ export default class ScanResult extends BaseCard {
             const item = await this._client.getProduct(barcode);
             this._fetching = false;
             if (!item) {
-                this._error = `Prodotto "${barcode}" non trovato`;
+                this._error = `Prodotto "${barcode}" non trovato in Open Food Facts`;
                 this.parent.requestUpdate();
-                return html`<div class="scan-error"><ha-icon icon="mdi:help-circle"></ha-icon> ${this._error}</div>`;
+                return this._renderError(this._error, 'mdi:help-circle', barcode);
             }
             this._currentItem = item;
             this.parent.requestUpdate();
             return this._renderProduct(item);
-        } catch {
+        } catch (e) {
             this._fetching = false;
-            this._error = 'Errore connessione Open Food Facts';
+            const msg = (e as Error).message;
+            this._error = msg === 'TIMEOUT'
+                ? 'Open Food Facts non risponde (timeout). Riprova.'
+                : msg === 'NETWORK'
+                ? 'Nessuna connessione internet'
+                : `Errore Open Food Facts (${msg})`;
             this.parent.requestUpdate();
-            return html`<div class="scan-error"><ha-icon icon="mdi:wifi-off"></ha-icon> ${this._error}</div>`;
+            return this._renderError(this._error, 'mdi:wifi-off', barcode);
         }
+    }
+
+    private _renderError(msg: string, icon: string, barcode: string): HTMLTemplateResult {
+        return html`
+            <div class="scan-error">
+                <ha-icon icon="${icon}"></ha-icon> ${msg}
+            </div>
+            <div class="actions" style="margin-top:12px">
+                <mwc-button outlined @click=${() => this._retry(barcode)}>
+                    <ha-icon icon="mdi:refresh"></ha-icon>&nbsp;Riprova
+                </mwc-button>
+            </div>
+        `;
+    }
+
+    private _retry(barcode: string): void {
+        this._lastBarcode = '';
+        this._error = '';
+        this._fetching = false;
+        this.parent.requestUpdate();
     }
 
     /* ── Templates ── */
