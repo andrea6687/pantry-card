@@ -1,4 +1,6 @@
 {
     "name": "Pantry Card",
+    "content_in_root": true,
+    "filename": "pantry-card.js",
     "render_readme": false
 }
