@@ -14,9 +14,12 @@ A smart pantry manager for Home Assistant. Scan barcodes with your phone camera,
 ## ✨ Features
 
 - 📷 **Barcode scanner** — tap the card to open the camera directly (Chrome/Android native, Safari/iOS via ZXing fallback)
+- 📦 **Batch import** — scan multiple products at once via camera, gallery photos, or manual barcode entry, then import them all in one tap
+- 🖼️ **Gallery import** — pick one or more photos from your device gallery and extract barcodes automatically
 - 🌐 **Open Food Facts integration** — automatically fetches product name, brand, allergens, nutritional values and ingredients
 - ⚠️ **Allergen alerts** — visual warning banner when a scanned product contains allergens you configured
 - 🗓️ **Expiry tracking** — set expiry and purchase dates, color-coded warnings (green / orange / red)
+- ✏️ **Inline editing** — edit category, purchase date and expiry date directly from the pantry list with a single tap
 - 🏷️ **Categories** — organize products with predefined categories (Dairy, Meat & Fish, Fruit & Veg, etc.)
 - 🔢 **Quantity management** — inline +/− controls directly in the pantry view
 - 🔍 **Search, sort & filter** — search by name/brand, filter by category, sort by name/expiry/date added
@@ -154,7 +157,7 @@ Use English names as recognized by Open Food Facts:
 
 ## 📱 How to Use
 
-### Scanning a product
+### Scanning a single product
 
 1. **Tap the scanner card** — the camera opens automatically
 2. **Point at the barcode** — detection is automatic, no button needed
@@ -169,13 +172,52 @@ Use English names as recognized by Open Food Facts:
 
 > **On error:** a **Riprova** (retry) button and a **Nuova scansione** (new scan) button appear. The card resets automatically after **5 seconds**.
 
+---
+
+### 📦 Batch Import
+
+Batch mode lets you add many products at once without filling in details for each one. Products are imported with quantity 1 and no dates — you can edit them later directly in the pantry list.
+
+#### How to activate
+
+Tap **Importazione batch** at the bottom of the scanner card placeholder.
+
+#### Three ways to add products to the queue
+
+| Method | How |
+|--------|-----|
+| 📷 **Camera** | Tap **Camera** → scan a barcode → scanner resets automatically, ready for the next one |
+| 🖼️ **Gallery** | Tap **Galleria** → select one or more photos from your device → barcodes are extracted automatically |
+| ⌨️ **Manual** | Type a barcode in the text field and press Enter or tap **+** |
+
+Each barcode is looked up on Open Food Facts in the background. The queue shows the product name and thumbnail as results arrive.
+
+#### Importing
+
+- Items that were not found on Open Food Facts are shown in red and excluded from import
+- Tap **Importa N prodotti** to save all valid items to the pantry in a single operation
+- The queue clears and batch mode closes automatically
+
+---
+
 ### Managing the pantry
 
 - **Search** by product name, brand or category
 - **Sort** by name, expiry date, or date added
 - **Filter** by category using the chips
 - **+/−** buttons update quantity instantly
+- **Pencil icon** opens an inline edit panel for category, purchase date and expiry date
 - **Trash icon** removes the product
+
+### Editing a product
+
+Tap the ✏️ pencil icon on any pantry item to expand the inline edit panel. You can update:
+
+- **Category**
+- **Purchase date**
+- **Expiry date**
+
+Tap **Salva** to confirm or **Annulla** to discard changes.
 
 ### Expiry color coding
 
@@ -237,14 +279,14 @@ Add to `automations.yaml`:
 
 ```yaml
 - alias: "Pantry - Expiry alert"
-  trigger:
-    - platform: time
-      at: "08:00:00"
-  condition:
+  triggers:
+    - at: "08:00:00"
+      trigger: time
+  conditions:
     - condition: template
       value_template: >
         {{ states('input_text.pantry_expiring') not in ['ok', '', 'unknown', 'unavailable'] }}
-  action:
+  actions:
     - action: notify.mobile_app_your_phone
       data:
         title: "🛒 Pantry - Expiry alert"
@@ -252,12 +294,15 @@ Add to `automations.yaml`:
           {% set raw = states('input_text.pantry_expiring') %}
           {% for item in raw.split(',') %}
           {% set parts = item.split(':') %}
+          {% set name = parts[0] %}
           {% set days = parts[1] | int %}
-          • {{ parts[0] }}
-          {%- if days < 0 %} — expired {{ days | abs }} days ago
-          {%- elif days == 0 %} — expires TODAY
-          {%- elif days == 1 %} — expires tomorrow
-          {%- else %} — {{ days }} days left{% endif %}
+          • {{ name }}
+          {%- if days < -1 %} → expired {{ days | abs }} days ago
+          {%- elif days == -1 %} → expired yesterday
+          {%- elif days == 0 %} → expires TODAY
+          {%- elif days == 1 %} → expires tomorrow
+          {%- else %} → {{ days }} days left
+          {%- endif %}
           {% endfor %}
 ```
 
@@ -298,6 +343,12 @@ The scanned barcode is not in the Open Food Facts database.
 
 - Try searching manually at [world.openfoodfacts.org](https://world.openfoodfacts.org)
 - You can add the missing product to OFF to help other users
+
+### Gallery import does not detect barcodes
+
+- Use clear, well-lit photos taken close to the barcode
+- Avoid blurry or rotated images
+- Native detection (`BarcodeDetector`) works best on Android/Chrome; iOS/Safari uses ZXing as fallback
 
 ### Camera does not open
 
@@ -342,15 +393,15 @@ src/
 ├── index.ts                       # Main LitElement, shouldUpdate, hass setter
 ├── editor.ts                      # Visual Lovelace editor
 ├── consts.ts                      # Card name, storage key constants
-├── styles.ts                      # All CSS (scanner, form, pantry list)
+├── styles.ts                      # All CSS (scanner, batch mode, pantry list, edit panel)
 ├── types/
 │   └── pantry-types.ts            # TypeScript interfaces, enums (PantryItem, config…)
 ├── api/
 │   └── open-food-facts-client.ts  # OFF API v2 with timeout, app identification
 └── cards/
     ├── base-card.ts               # Abstract base: HA storage, allergen check, expiry sync
-    ├── scan-result.ts             # Scanner (BarcodeDetector + ZXing), product display, add form
-    └── pantry-list.ts             # Pantry list: search, sort, filter, quantity controls
+    ├── scan-result.ts             # Scanner, batch import (camera/gallery/manual), add form
+    └── pantry-list.ts             # Pantry list: search, sort, filter, qty controls, inline edit
 ```
 
 ### Storage architecture
