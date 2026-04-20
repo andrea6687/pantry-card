@@ -82,45 +82,57 @@ export default class PantryList extends BaseCard {
         const expStatus = this._expiryStatus(item);
 
         return html`
-            <div class="pantry-item ${warning ? 'has-warning' : ''} expiry-${expStatus}">
-                ${item.image_url
-                    ? html`<img src="${item.image_url}" class="item-thumb">`
-                    : html`<ha-icon icon="mdi:food" class="item-thumb-icon"></ha-icon>`}
+            <div class="pantry-item expiry-${expStatus} ${warning ? 'has-warning' : ''}">
 
-                <div class="item-info">
-                    <div class="item-name-row">
-                        <span class="item-name">${item.name}</span>
-                        ${warning ? html`<ha-icon icon="mdi:alert-circle" class="warning-icon" title="Contiene allergeni!"></ha-icon>` : ''}
-                    </div>
-                    ${item.brand ? html`<span class="item-brand">${item.brand}</span>` : ''}
-                    <div class="item-meta">
+                <div class="item-top-row">
+                    ${item.image_url
+                        ? html`<img src="${item.image_url}" class="item-thumb">`
+                        : html`<ha-icon icon="mdi:food" class="item-thumb-icon"></ha-icon>`}
+
+                    <div class="item-header">
+                        <div class="item-name-row">
+                            <span class="item-name">${item.name}</span>
+                            ${warning ? html`<ha-icon icon="mdi:alert-circle" class="warning-icon"></ha-icon>` : ''}
+                        </div>
+                        ${item.brand ? html`<span class="item-brand">${item.brand}</span>` : ''}
                         ${item.category ? html`<span class="cat-badge">${item.category}</span>` : ''}
-                        ${item.expiry_date ? html`
-                            <span class="expiry-badge expiry-badge-${expStatus}">
-                                <ha-icon icon="mdi:calendar-clock"></ha-icon>
-                                ${this._formatExpiry(item.expiry_date)}
-                            </span>` : ''}
-                        ${item.purchase_date ? html`
-                            <span class="purchase-badge">
-                                <ha-icon icon="mdi:cart"></ha-icon>
-                                ${item.purchase_date}
-                            </span>` : ''}
                     </div>
-                </div>
 
-                <div class="item-qty">
-                    <mwc-icon-button @click=${() => this._decrease(item)}>
-                        <ha-icon icon="mdi:minus"></ha-icon>
-                    </mwc-icon-button>
-                    <span class="qty-value">${item.quantity || 1}</span>
-                    <mwc-icon-button @click=${() => this._increase(item)}>
-                        <ha-icon icon="mdi:plus"></ha-icon>
+                    <mwc-icon-button class="delete-btn" @click=${() => this._remove(item.barcode)}>
+                        <ha-icon icon="mdi:delete-outline"></ha-icon>
                     </mwc-icon-button>
                 </div>
 
-                <mwc-icon-button @click=${() => this._remove(item.barcode)}>
-                    <ha-icon icon="mdi:delete-outline"></ha-icon>
-                </mwc-icon-button>
+                <div class="item-details-row">
+                    <div class="item-detail">
+                        <ha-icon icon="mdi:numeric"></ha-icon>
+                        <span>Quantità</span>
+                        <div class="inline-qty">
+                            <button class="qty-btn" @click=${() => this._decrease(item)}>−</button>
+                            <span class="qty-value">${item.quantity || 1}</span>
+                            <button class="qty-btn" @click=${() => this._increase(item)}>+</button>
+                        </div>
+                    </div>
+
+                    ${item.purchase_date ? html`
+                        <div class="item-detail">
+                            <ha-icon icon="mdi:cart-outline"></ha-icon>
+                            <span>Acquisto</span>
+                            <strong>${this._formatDate(item.purchase_date)}</strong>
+                        </div>` : ''}
+
+                    ${item.expiry_date ? html`
+                        <div class="item-detail expiry-detail-${expStatus}">
+                            <ha-icon icon="mdi:calendar-clock"></ha-icon>
+                            <span>Scadenza</span>
+                            <strong>${this._formatExpiry(item.expiry_date)}</strong>
+                        </div>` : html`
+                        <div class="item-detail muted">
+                            <ha-icon icon="mdi:calendar-remove-outline"></ha-icon>
+                            <span>Scadenza</span>
+                            <strong>—</strong>
+                        </div>`}
+                </div>
             </div>
         `;
     }
@@ -174,6 +186,11 @@ export default class PantryList extends BaseCard {
     }
 
     /* ── Expiry ── */
+
+    private _formatDate(dateStr: string): string {
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    }
 
     private _expiryStatus(item: PantryItem): 'ok' | 'soon' | 'expired' {
         if (!item.expiry_date) return 'ok';
