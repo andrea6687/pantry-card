@@ -1,5 +1,6 @@
 import { html, HTMLTemplateResult } from 'lit';
 import { until } from 'lit-html/directives/until.js';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { BaseCard } from './base-card';
 import OpenFoodFactsClient from '../api/open-food-facts-client';
 import { PantryItem } from '../types/pantry-types';
@@ -22,6 +23,8 @@ export default class ScanResult extends BaseCard {
     private _stream: MediaStream | null = null;
     private _rafId: number | null = null;
     private _detector: BarcodeDetector | null = null;
+    private _zxingReader: BrowserMultiFormatReader | null = null;
+    private _zxingControls: { stop: () => void } | null = null;
 
     cardSize(): number { return 7; }
 
@@ -70,12 +73,19 @@ export default class ScanResult extends BaseCard {
     }
 
     private async _openScanner(): Promise<void> {
-        if (!('BarcodeDetector' in window)) {
-            this._error = 'BarcodeDetector non supportato da questo browser';
-            this.parent.requestUpdate();
-            return;
-        }
+        this._scanning = true;
+        this.parent.requestUpdate();
 
+        if ('BarcodeDetector' in window) {
+            await this._openNative();
+        } else {
+            await this._openZXing();
+        }
+    }
+
+    /* ── Native BarcodeDetector (Chrome / Android) ── */
+
+    private async _openNative(): Promise<void> {
         try {
             this._stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment', width: { ideal: 1280 } },
@@ -83,17 +93,15 @@ export default class ScanResult extends BaseCard {
             this._detector = new BarcodeDetector({
                 formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'],
             });
-            this._scanning = true;
-            this.parent.requestUpdate();
-            /* Aspetta render, poi aggancia stream al video */
-            setTimeout(() => this._attachAndScan(), 100);
+            setTimeout(() => this._attachAndScanNative(), 100);
         } catch {
+            this._scanning = false;
             this._error = 'Accesso fotocamera negato';
             this.parent.requestUpdate();
         }
     }
 
-    private _attachAndScan(): void {
+    private _attachAndScanNative(): void {
         const video = this.parent.shadowRoot?.querySelector<HTMLVideoElement>('#pantry-video');
         if (!video || !this._stream) return;
         video.srcObject = this._stream;
@@ -103,7 +111,6 @@ export default class ScanResult extends BaseCard {
 
     private _scanLoop(video: HTMLVideoElement): void {
         if (!this._scanning || !this._detector) return;
-
         this._rafId = requestAnimationFrame(async () => {
             if (!this._scanning) return;
             try {
@@ -115,6 +122,36 @@ export default class ScanResult extends BaseCard {
             } catch { /* frame non pronto */ }
             this._scanLoop(video);
         });
+    }
+
+    /* ── ZXing fallback (Safari / iOS / Firefox) ── */
+
+    private async _openZXing(): Promise<void> {
+        try {
+            this._zxingReader = new BrowserMultiFormatReader();
+            setTimeout(async () => {
+                const video = this.parent.shadowRoot?.querySelector<HTMLVideoElement>('#pantry-video');
+                if (!video) return;
+                try {
+                    this._zxingControls = await this._zxingReader.decodeFromConstraints(
+                        { video: { facingMode: 'environment' } },
+                        video,
+                        (result, err) => {
+                            if (result) this._onDetected(result.getText());
+                            void err;
+                        }
+                    );
+                } catch {
+                    this._scanning = false;
+                    this._error = 'Accesso fotocamera negato';
+                    this.parent.requestUpdate();
+                }
+            }, 100);
+        } catch {
+            this._scanning = false;
+            this._error = 'Scanner non disponibile';
+            this.parent.requestUpdate();
+        }
     }
 
     private async _onDetected(barcode: string): Promise<void> {
@@ -132,8 +169,12 @@ export default class ScanResult extends BaseCard {
 
     private _closeScanner(): void {
         if (this._rafId) cancelAnimationFrame(this._rafId);
+        this._rafId = null;
         this._stream?.getTracks().forEach(t => t.stop());
         this._stream = null;
+        this._zxingControls?.stop();
+        this._zxingControls = null;
+        this._zxingReader = null;
         this._scanning = false;
         this.parent.requestUpdate();
     }
