@@ -1,13 +1,19 @@
 import { html, HTMLTemplateResult } from 'lit';
 import { until } from 'lit-html/directives/until.js';
 import { BaseCard } from './base-card';
-import { PantryItem, PantrySort } from '../types/pantry-types';
+import { PantryCategory, PantryItem, PantrySort } from '../types/pantry-types';
 
 export default class PantryList extends BaseCard {
     private _sort: PantrySort = PantrySort.Name;
     private _filterCategory = '';
     private _search = '';
     private _loaded = false;
+
+    /* inline edit */
+    private _editingBarcode: string | null = null;
+    private _editExpiry = '';
+    private _editPurchase = '';
+    private _editCategory = '';
 
     cardSize(): number { return 10; }
 
@@ -89,6 +95,7 @@ export default class PantryList extends BaseCard {
     private _renderItem(item: PantryItem): HTMLTemplateResult {
         const warning = this.hasAllergenWarning(item);
         const expStatus = this._expiryStatus(item);
+        const isEditing = this._editingBarcode === item.barcode;
 
         return html`
             <div class="pantry-item expiry-${expStatus} ${warning ? 'has-warning' : ''}">
@@ -107,6 +114,9 @@ export default class PantryList extends BaseCard {
                         ${item.category ? html`<span class="cat-badge">${item.category}</span>` : ''}
                     </div>
 
+                    <mwc-icon-button class="edit-btn" @click=${() => this._startEdit(item)}>
+                        <ha-icon icon="mdi:pencil-outline"></ha-icon>
+                    </mwc-icon-button>
                     <mwc-icon-button class="delete-btn" @click=${() => this._remove(item.barcode)}>
                         <ha-icon icon="mdi:delete-outline"></ha-icon>
                     </mwc-icon-button>
@@ -128,7 +138,12 @@ export default class PantryList extends BaseCard {
                             <ha-icon icon="mdi:cart-outline"></ha-icon>
                             <span>Acquisto</span>
                             <strong>${this._formatDate(item.purchase_date)}</strong>
-                        </div>` : ''}
+                        </div>` : html`
+                        <div class="item-detail muted">
+                            <ha-icon icon="mdi:cart-outline"></ha-icon>
+                            <span>Acquisto</span>
+                            <strong>—</strong>
+                        </div>`}
 
                     ${item.expiry_date ? html`
                         <div class="item-detail expiry-detail-${expStatus}">
@@ -142,8 +157,76 @@ export default class PantryList extends BaseCard {
                             <strong>—</strong>
                         </div>`}
                 </div>
+
+                ${isEditing ? this._renderEditPanel(item) : ''}
             </div>
         `;
+    }
+
+    private _renderEditPanel(item: PantryItem): HTMLTemplateResult {
+        return html`
+            <div class="item-edit-panel">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Categoria</label>
+                        <select class="form-select"
+                            @change=${(e: Event) => { this._editCategory = (e.target as HTMLSelectElement).value; }}>
+                            <option value="" ?selected=${!this._editCategory}>-- Nessuna --</option>
+                            ${Object.values(PantryCategory).map(cat => html`
+                                <option value="${cat}" ?selected=${this._editCategory === cat}>${cat}</option>`)}
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Data acquisto</label>
+                        <input type="date" class="form-input"
+                            .value=${this._editPurchase}
+                            @change=${(e: Event) => { this._editPurchase = (e.target as HTMLInputElement).value; }}>
+                    </div>
+                    <div class="form-field">
+                        <label>Data scadenza</label>
+                        <input type="date" class="form-input"
+                            .value=${this._editExpiry}
+                            @change=${(e: Event) => { this._editExpiry = (e.target as HTMLInputElement).value; }}>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <mwc-button @click=${() => { this._editingBarcode = null; this.parent.requestUpdate(); }}>
+                        Annulla
+                    </mwc-button>
+                    <mwc-button raised @click=${() => this._saveEdit(item)}>
+                        <ha-icon icon="mdi:content-save"></ha-icon>&nbsp;Salva
+                    </mwc-button>
+                </div>
+            </div>
+        `;
+    }
+
+    /* ── Edit ── */
+
+    private _startEdit(item: PantryItem): void {
+        this._editingBarcode = item.barcode;
+        this._editExpiry = item.expiry_date || '';
+        this._editPurchase = item.purchase_date || '';
+        this._editCategory = item.category || '';
+        this.parent.requestUpdate();
+    }
+
+    private async _saveEdit(item: PantryItem): Promise<void> {
+        const items = [...this.getPantryItems()];
+        const idx = items.findIndex(i => i.barcode === item.barcode);
+        if (idx >= 0) {
+            items[idx] = {
+                ...items[idx],
+                expiry_date: this._editExpiry || undefined,
+                purchase_date: this._editPurchase || undefined,
+                category: this._editCategory || undefined,
+            };
+        }
+        await this.savePantryItems(items);
+        this.syncExpiryToHA();
+        this._editingBarcode = null;
+        window.dispatchEvent(new CustomEvent('pantry-updated'));
+        this.parent.requestUpdate();
     }
 
     /* ── Filters / sort ── */

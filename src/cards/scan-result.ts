@@ -7,8 +7,15 @@ import { PantryCategory, PantryItem } from '../types/pantry-types';
 
 declare class BarcodeDetector {
     constructor(options?: { formats: string[] });
-    detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
+    detect(source: HTMLVideoElement | ImageBitmap): Promise<Array<{ rawValue: string }>>;
     static getSupportedFormats(): Promise<string[]>;
+}
+
+interface QueueEntry {
+    barcode: string;
+    item: PantryItem | null;
+    loading: boolean;
+    error: string;
 }
 
 export default class ScanResult extends BaseCard {
@@ -34,10 +41,18 @@ export default class ScanResult extends BaseCard {
     private _formCategory = '';
     private _savedFeedback = false;
 
+    /* batch mode */
+    private _batchMode = false;
+    private _queue: QueueEntry[] = [];
+    private _manualBarcode = '';
+    private _importing = false;
+    private _galleryFailed = 0;
+
     cardSize(): number { return 7; }
 
     render(): HTMLTemplateResult {
         if (this._scanning) return this._renderScanner();
+        if (this._batchMode) return this._renderBatchMode();
 
         const state = this.hass?.states[this.config.barcode_entity];
         const barcode = state?.state;
@@ -150,6 +165,12 @@ export default class ScanResult extends BaseCard {
 
     private async _onDetected(barcode: string): Promise<void> {
         this._closeScanner();
+
+        if (this._batchMode) {
+            this._addToQueue(barcode);
+            return;
+        }
+
         try {
             await this.hass.callService('input_text', 'set_value', {
                 entity_id: this.config.barcode_entity,
@@ -171,6 +192,205 @@ export default class ScanResult extends BaseCard {
         this._zxingReader = null;
         this._scanning = false;
         this.parent.requestUpdate();
+    }
+
+    /* ── Batch mode ── */
+
+    private _addToQueue(barcode: string): void {
+        if (this._queue.some(q => q.barcode === barcode)) {
+            this.parent.requestUpdate();
+            return;
+        }
+        const entry: QueueEntry = { barcode, item: null, loading: true, error: '' };
+        this._queue = [...this._queue, entry];
+        this.parent.requestUpdate();
+
+        this._client.getProduct(barcode)
+            .then(item => {
+                const idx = this._queue.findIndex(q => q.barcode === barcode);
+                if (idx < 0) return;
+                const updated = [...this._queue];
+                updated[idx] = { barcode, item, loading: false, error: item ? '' : 'Non trovato' };
+                this._queue = updated;
+                this.parent.requestUpdate();
+            })
+            .catch(() => {
+                const idx = this._queue.findIndex(q => q.barcode === barcode);
+                if (idx < 0) return;
+                const updated = [...this._queue];
+                updated[idx] = { barcode, item: null, loading: false, error: 'Errore OFF' };
+                this._queue = updated;
+                this.parent.requestUpdate();
+            });
+    }
+
+    private async _decodeImageFile(file: File): Promise<string | null> {
+        if ('BarcodeDetector' in window) {
+            try {
+                const bitmap = await createImageBitmap(file);
+                const detector = new BarcodeDetector({
+                    formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'],
+                });
+                const results = await detector.detect(bitmap);
+                if (results[0]?.rawValue) return results[0].rawValue;
+            } catch { /* fallback ZXing */ }
+        }
+        try {
+            const url = URL.createObjectURL(file);
+            const reader = new BrowserMultiFormatReader();
+            const result = await reader.decodeFromImageUrl(url);
+            URL.revokeObjectURL(url);
+            return result.getText();
+        } catch {
+            return null;
+        }
+    }
+
+    private _importGallery(): void {
+        this._galleryFailed = 0;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.onchange = async () => {
+            const files = Array.from(input.files ?? []);
+            for (const file of files) {
+                const barcode = await this._decodeImageFile(file);
+                if (barcode) {
+                    this._addToQueue(barcode);
+                } else {
+                    this._galleryFailed++;
+                }
+            }
+            if (this._galleryFailed > 0) this.parent.requestUpdate();
+        };
+        input.click();
+    }
+
+    private async _importAll(): Promise<void> {
+        this._importing = true;
+        this.parent.requestUpdate();
+
+        const toImport = this._queue.filter(q => !q.loading && q.item !== null);
+        let items = [...this.getPantryItems()];
+        const now = new Date().toISOString();
+
+        for (const entry of toImport) {
+            const newItem: PantryItem = { ...entry.item!, quantity: 1, added_at: now };
+            const idx = items.findIndex(i => i.barcode === newItem.barcode);
+            if (idx >= 0) {
+                items[idx].quantity = (items[idx].quantity || 1) + 1;
+            } else {
+                items.unshift(newItem);
+            }
+        }
+
+        await this.savePantryItems(items);
+        this.syncExpiryToHA();
+
+        this._queue = [];
+        this._batchMode = false;
+        this._importing = false;
+        this._galleryFailed = 0;
+        window.dispatchEvent(new CustomEvent('pantry-updated'));
+        this.parent.requestUpdate();
+    }
+
+    private _renderBatchMode(): HTMLTemplateResult {
+        const ready = this._queue.filter(q => !q.loading && q.item !== null);
+        const failed = this._queue.filter(q => !q.loading && q.item === null && q.error);
+
+        return html`
+            <div class="batch-mode">
+                <div class="batch-header">
+                    <ha-icon icon="mdi:package-variant-closed"></ha-icon>
+                    <span>Importazione batch (${this._queue.length} in coda)</span>
+                    <mwc-icon-button @click=${() => { this._batchMode = false; this._queue = []; this._galleryFailed = 0; this.parent.requestUpdate(); }}>
+                        <ha-icon icon="mdi:close"></ha-icon>
+                    </mwc-icon-button>
+                </div>
+
+                <div class="batch-actions">
+                    <mwc-button outlined @click=${() => this._openScanner()}>
+                        <ha-icon icon="mdi:camera"></ha-icon>&nbsp;Camera
+                    </mwc-button>
+                    <mwc-button outlined @click=${() => this._importGallery()}>
+                        <ha-icon icon="mdi:image-multiple"></ha-icon>&nbsp;Galleria
+                    </mwc-button>
+                </div>
+
+                <div class="manual-input">
+                    <input type="text" class="form-input" placeholder="Inserisci barcode manuale..."
+                        .value=${this._manualBarcode}
+                        @input=${(e: Event) => { this._manualBarcode = (e.target as HTMLInputElement).value; }}
+                        @keydown=${(e: KeyboardEvent) => {
+                            if (e.key === 'Enter' && this._manualBarcode.trim()) {
+                                this._addToQueue(this._manualBarcode.trim());
+                                this._manualBarcode = '';
+                                this.parent.requestUpdate();
+                            }
+                        }}>
+                    <mwc-button outlined @click=${() => {
+                        if (this._manualBarcode.trim()) {
+                            this._addToQueue(this._manualBarcode.trim());
+                            this._manualBarcode = '';
+                            this.parent.requestUpdate();
+                        }
+                    }}>
+                        <ha-icon icon="mdi:plus"></ha-icon>
+                    </mwc-button>
+                </div>
+
+                ${this._galleryFailed > 0 ? html`
+                    <div class="scan-error" style="margin-bottom:10px">
+                        <ha-icon icon="mdi:image-off"></ha-icon>
+                        ${this._galleryFailed} immagine/i senza barcode rilevabile
+                    </div>` : ''}
+
+                ${this._queue.length ? html`
+                    <div class="batch-queue">
+                        ${this._queue.map((entry, idx) => html`
+                            <div class="queue-item ${entry.error ? 'queue-error' : ''}">
+                                ${entry.loading
+                                    ? html`<ha-circular-progress active indeterminate size="small" style="width:32px;height:32px"></ha-circular-progress>`
+                                    : entry.item?.image_url
+                                    ? html`<img src="${entry.item.image_url}" class="queue-thumb">`
+                                    : html`<ha-icon icon="mdi:food" class="queue-icon"></ha-icon>`}
+                                <div class="queue-info">
+                                    ${entry.loading
+                                        ? html`<span class="queue-name">Ricerca... (${entry.barcode})</span>`
+                                        : entry.error
+                                        ? html`<span class="queue-name error">${entry.error} — ${entry.barcode}</span>`
+                                        : html`
+                                            <span class="queue-name">${entry.item!.name}</span>
+                                            ${entry.item!.brand ? html`<span class="queue-brand">${entry.item!.brand}</span>` : ''}
+                                        `}
+                                </div>
+                                <mwc-icon-button @click=${() => {
+                                    this._queue = this._queue.filter((_, i) => i !== idx);
+                                    this.parent.requestUpdate();
+                                }}>
+                                    <ha-icon icon="mdi:close"></ha-icon>
+                                </mwc-icon-button>
+                            </div>`)}
+                    </div>
+
+                    <div class="batch-import-row">
+                        ${failed.length ? html`<span class="batch-failed">${failed.length} non trovati</span>` : ''}
+                        <mwc-button raised
+                            ?disabled=${ready.length === 0 || this._importing}
+                            @click=${() => this._importAll()}>
+                            ${this._importing
+                                ? html`<ha-circular-progress active indeterminate size="small" style="width:18px;height:18px"></ha-circular-progress>`
+                                : html`<ha-icon icon="mdi:package-variant-closed-check"></ha-icon>`}
+                            &nbsp;Importa ${ready.length} prodotti
+                        </mwc-button>
+                    </div>
+                ` : html`
+                    <p class="batch-empty">Nessun prodotto in coda.<br>Scansiona con camera, carica foto dalla galleria o inserisci barcode manualmente.</p>
+                `}
+            </div>
+        `;
     }
 
     /* ── Fetch OFF ── */
@@ -256,6 +476,17 @@ export default class ScanResult extends BaseCard {
                 <ha-icon icon="mdi:barcode-scan"></ha-icon>
                 <p>Tocca per scansionare</p>
                 <small>${this.config.barcode_entity}</small>
+            </div>
+            <div class="batch-toggle-row">
+                <mwc-button outlined @click=${(e: Event) => {
+                    e.stopPropagation();
+                    this._batchMode = true;
+                    this._queue = [];
+                    this._galleryFailed = 0;
+                    this.parent.requestUpdate();
+                }}>
+                    <ha-icon icon="mdi:package-variant"></ha-icon>&nbsp;Importazione batch
+                </mwc-button>
             </div>
         `;
     }
@@ -434,21 +665,17 @@ export default class ScanResult extends BaseCard {
         await this.addItem(toSave);
         this.syncExpiryToHA();
 
-        /* reset scanner */
         this._showForm = false;
         this._currentItem = null;
         this._lastBarcode = '';
         this._error = '';
 
-        /* svuota entity barcode → scanner torna al placeholder */
         this.hass.callService('input_text', 'set_value', {
             entity_id: this.config.barcode_entity,
             value: '',
         }).catch(() => {});
 
-        /* notifica tutte le card sulla pagina (es. pantry list) */
         window.dispatchEvent(new CustomEvent('pantry-updated'));
-
         this.parent.requestUpdate();
     }
 }
