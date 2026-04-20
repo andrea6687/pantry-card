@@ -56,7 +56,7 @@ export default class ScanResult extends BaseCard {
         }
 
         if (this._fetching) return this._renderLoading();
-        if (this._error) return html`<div class="scan-error"><ha-icon icon="mdi:alert-circle"></ha-icon> ${this._error}</div>`;
+        if (this._error) return this._renderError(this._error, 'mdi:alert-circle', barcode);
         if (this._currentItem) return this._renderProduct(this._currentItem);
         return this._renderPlaceholder();
     }
