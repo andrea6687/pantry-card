@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "experimentalDecorators": true,
+        "module": "CommonJS",
+        "noImplicitAny": true,
+        "removeComments": true,
+        "resolveJsonModule": true,
+        "preserveConstEnums": true,
+        "sourceMap": true,
+        "moduleResolution": "Node",
+        "target": "es6",
+        "lib": ["es6", "dom"]
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules"]
+}
