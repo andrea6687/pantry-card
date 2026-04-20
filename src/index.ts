@@ -55,14 +55,19 @@ export default class PantryCard extends LitElement {
         if (!this.config) return;
         this.config = { ...this.config, hass };
 
-        switch (this.config.card_type) {
-            case PantryCardType.Pantry:
-                this.card = new PantryList(this);
-                break;
-            case PantryCardType.Scanner:
-            default:
-                this.card = new ScanResult(this);
-                break;
+        if (!this.card) {
+            switch (this.config.card_type) {
+                case PantryCardType.Pantry:
+                    this.card = new PantryList(this);
+                    break;
+                case PantryCardType.Scanner:
+                default:
+                    this.card = new ScanResult(this);
+                    break;
+            }
+        } else {
+            this.card.hass = hass;
+            this.card.config = this.config;
         }
     }
 
