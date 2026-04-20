@@ -119,6 +119,55 @@ export const styles = css`
     /* ── Actions ── */
     .actions { margin-top: 16px; display: flex; justify-content: flex-end; }
 
+    /* ── Camera scanner ── */
+    .scanner-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+    }
+
+    .scanner-video {
+        width: 100%;
+        max-height: 280px;
+        border-radius: 8px;
+        background: #000;
+        object-fit: cover;
+    }
+
+    .scanner-frame {
+        position: relative;
+        width: 100%;
+        max-width: 280px;
+        height: 180px;
+        margin-top: -260px;
+        pointer-events: none;
+    }
+
+    .corner {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        border-color: var(--primary-color, #03a9f4);
+        border-style: solid;
+    }
+    .corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; }
+    .corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; }
+    .corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+    .corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+    .scanner-hint {
+        margin: 60px 0 0;
+        font-size: 0.9em;
+        color: var(--secondary-text-color);
+    }
+
+    .scan-placeholder { cursor: pointer; }
+    .scan-placeholder:hover ha-icon { color: var(--primary-color); }
+
+    .actions { gap: 8px; }
+
     /* ── Pantry list ── */
     .pantry-warning-summary {
         background: var(--pantry-warning-bg);

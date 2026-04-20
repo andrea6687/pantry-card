@@ -4,6 +4,13 @@ import { BaseCard } from './base-card';
 import OpenFoodFactsClient from '../api/open-food-facts-client';
 import { PantryItem } from '../types/pantry-types';
 
+/* BarcodeDetector non è ancora nelle lib TS standard */
+declare class BarcodeDetector {
+    constructor(options?: { formats: string[] });
+    detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
+    static getSupportedFormats(): Promise<string[]>;
+}
+
 export default class ScanResult extends BaseCard {
     private _client = new OpenFoodFactsClient();
     private _lastBarcode = '';
@@ -11,9 +18,16 @@ export default class ScanResult extends BaseCard {
     private _error = '';
     private _fetching = false;
 
+    private _scanning = false;
+    private _stream: MediaStream | null = null;
+    private _rafId: number | null = null;
+    private _detector: BarcodeDetector | null = null;
+
     cardSize(): number { return 7; }
 
     render(): HTMLTemplateResult {
+        if (this._scanning) return this._renderScanner();
+
         const state = this.hass?.states[this.config.barcode_entity];
         const barcode = state?.state;
 
@@ -35,6 +49,97 @@ export default class ScanResult extends BaseCard {
         return this._renderPlaceholder();
     }
 
+    /* ── Scanner fotocamera ── */
+
+    private _renderScanner(): HTMLTemplateResult {
+        return html`
+            <div class="scanner-wrap">
+                <video id="pantry-video" autoplay playsinline muted class="scanner-video"></video>
+                <div class="scanner-frame">
+                    <div class="corner tl"></div>
+                    <div class="corner tr"></div>
+                    <div class="corner bl"></div>
+                    <div class="corner br"></div>
+                </div>
+                <p class="scanner-hint">Inquadra il codice a barre</p>
+                <mwc-button @click=${() => this._closeScanner()}>
+                    <ha-icon icon="mdi:close"></ha-icon>&nbsp;Annulla
+                </mwc-button>
+            </div>
+        `;
+    }
+
+    private async _openScanner(): Promise<void> {
+        if (!('BarcodeDetector' in window)) {
+            this._error = 'BarcodeDetector non supportato da questo browser';
+            this.parent.requestUpdate();
+            return;
+        }
+
+        try {
+            this._stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 } },
+            });
+            this._detector = new BarcodeDetector({
+                formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'],
+            });
+            this._scanning = true;
+            this.parent.requestUpdate();
+            /* Aspetta render, poi aggancia stream al video */
+            setTimeout(() => this._attachAndScan(), 100);
+        } catch {
+            this._error = 'Accesso fotocamera negato';
+            this.parent.requestUpdate();
+        }
+    }
+
+    private _attachAndScan(): void {
+        const video = this.parent.shadowRoot?.querySelector<HTMLVideoElement>('#pantry-video');
+        if (!video || !this._stream) return;
+        video.srcObject = this._stream;
+        video.play();
+        this._scanLoop(video);
+    }
+
+    private _scanLoop(video: HTMLVideoElement): void {
+        if (!this._scanning || !this._detector) return;
+
+        this._rafId = requestAnimationFrame(async () => {
+            if (!this._scanning) return;
+            try {
+                const results = await this._detector.detect(video);
+                if (results.length > 0) {
+                    await this._onDetected(results[0].rawValue);
+                    return;
+                }
+            } catch { /* frame non pronto */ }
+            this._scanLoop(video);
+        });
+    }
+
+    private async _onDetected(barcode: string): Promise<void> {
+        this._closeScanner();
+        try {
+            await this.hass.callService('input_text', 'set_value', {
+                entity_id: this.config.barcode_entity,
+                value: barcode,
+            });
+        } catch {
+            this._error = 'Impossibile aggiornare entity HA';
+            this.parent.requestUpdate();
+        }
+    }
+
+    private _closeScanner(): void {
+        if (this._rafId) cancelAnimationFrame(this._rafId);
+        this._stream?.getTracks().forEach(t => t.stop());
+        this._stream = null;
+        this._scanning = false;
+        this.parent.requestUpdate();
+    }
+
+    /* ── Fetch OFF ── */
+
     private async _fetchProduct(barcode: string): Promise<HTMLTemplateResult> {
         try {
             const item = await this._client.getProduct(barcode);
@@ -55,11 +160,13 @@ export default class ScanResult extends BaseCard {
         }
     }
 
+    /* ── Templates ── */
+
     private _renderPlaceholder(): HTMLTemplateResult {
         return html`
-            <div class="scan-placeholder">
+            <div class="scan-placeholder" @click=${() => this._openScanner()}>
                 <ha-icon icon="mdi:barcode-scan"></ha-icon>
-                <p>Scansiona un codice a barre</p>
+                <p>Tocca per scansionare</p>
                 <small>${this.config.barcode_entity}</small>
             </div>
         `;
@@ -118,8 +225,11 @@ export default class ScanResult extends BaseCard {
                 ` : ''}
 
                 <div class="actions">
+                    <mwc-button outlined @click=${() => this._openScanner()}>
+                        <ha-icon icon="mdi:barcode-scan"></ha-icon>&nbsp;Nuova scansione
+                    </mwc-button>
                     <mwc-button raised @click=${() => this._addToPantry(item)}>
-                        <ha-icon icon="mdi:plus"></ha-icon>&nbsp;Aggiungi alla dispensa
+                        <ha-icon icon="mdi:plus"></ha-icon>&nbsp;Aggiungi
                     </mwc-button>
                 </div>
             </div>
@@ -130,14 +240,14 @@ export default class ScanResult extends BaseCard {
         const n = item.nutrients;
         if (!n) return html``;
         const rows = [
-            { label: 'Energia', value: n.energy_kcal, unit: 'kcal' },
-            { label: 'Grassi', value: n.fat, unit: 'g' },
-            { label: '- di cui saturi', value: n.saturated_fat, unit: 'g' },
-            { label: 'Carboidrati', value: n.carbohydrates, unit: 'g' },
-            { label: '- di cui zuccheri', value: n.sugars, unit: 'g' },
-            { label: 'Fibre', value: n.fiber, unit: 'g' },
-            { label: 'Proteine', value: n.proteins, unit: 'g' },
-            { label: 'Sale', value: n.salt, unit: 'g' },
+            { label: 'Energia', value: n.energy_kcal, unit: 'kcal', decimals: 0 },
+            { label: 'Grassi', value: n.fat, unit: 'g', decimals: 1 },
+            { label: '- di cui saturi', value: n.saturated_fat, unit: 'g', decimals: 1 },
+            { label: 'Carboidrati', value: n.carbohydrates, unit: 'g', decimals: 1 },
+            { label: '- di cui zuccheri', value: n.sugars, unit: 'g', decimals: 1 },
+            { label: 'Fibre', value: n.fiber, unit: 'g', decimals: 1 },
+            { label: 'Proteine', value: n.proteins, unit: 'g', decimals: 1 },
+            { label: 'Sale', value: n.salt, unit: 'g', decimals: 2 },
         ].filter(r => r.value !== undefined && r.value !== null);
 
         if (!rows.length) return html``;
@@ -150,7 +260,7 @@ export default class ScanResult extends BaseCard {
                         ${rows.map(r => html`
                             <tr>
                                 <td>${r.label}</td>
-                                <td>${typeof r.value === 'number' ? r.value.toFixed(r.unit === 'kcal' ? 0 : 1) : r.value} ${r.unit}</td>
+                                <td>${(r.value as number).toFixed(r.decimals)} ${r.unit}</td>
                             </tr>
                         `)}
                     </tbody>
