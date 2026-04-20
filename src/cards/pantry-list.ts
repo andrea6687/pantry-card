@@ -222,7 +222,7 @@ export default class PantryList extends BaseCard {
         const idx = items.findIndex(i => i.barcode === item.barcode);
         if (idx >= 0) items[idx].quantity = (items[idx].quantity || 1) + 1;
         this.savePantryItems(items);
-        this.parent.requestUpdate();
+        this._notify();
     }
 
     private _decrease(item: PantryItem): void {
@@ -236,11 +236,16 @@ export default class PantryList extends BaseCard {
             }
         }
         this.savePantryItems(items);
-        this.parent.requestUpdate();
+        this._notify();
     }
 
     private _remove(barcode: string): void {
         this.removeItem(barcode);
-        this.parent.requestUpdate();
+        this.syncExpiryToHA();
+        this._notify();
+    }
+
+    private _notify(): void {
+        window.dispatchEvent(new CustomEvent('pantry-updated'));
     }
 }

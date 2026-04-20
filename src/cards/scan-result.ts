@@ -380,15 +380,22 @@ export default class ScanResult extends BaseCard {
         };
         this.addItem(toSave);
         this.syncExpiryToHA();
-        this._showForm = false;
-        this._savedFeedback = true;
-        this.parent.requestUpdate();
-        setTimeout(() => { this._savedFeedback = false; this.parent.requestUpdate(); }, 3000);
 
-        this.parent.dispatchEvent(new CustomEvent('pantry-item-added', {
-            detail: { item: toSave },
-            bubbles: true,
-            composed: true,
-        }));
+        /* reset scanner */
+        this._showForm = false;
+        this._currentItem = null;
+        this._lastBarcode = '';
+        this._error = '';
+
+        /* svuota entity barcode → scanner torna al placeholder */
+        this.hass.callService('input_text', 'set_value', {
+            entity_id: this.config.barcode_entity,
+            value: '',
+        }).catch(() => {});
+
+        /* notifica tutte le card sulla pagina (es. pantry list) */
+        window.dispatchEvent(new CustomEvent('pantry-updated'));
+
+        this.parent.requestUpdate();
     }
 }

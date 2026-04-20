@@ -30,6 +30,18 @@ export default class PantryCard extends LitElement {
     @property() config?: PantryCardConfig;
     @property() card?: BaseCard;
 
+    private _onPantryUpdated = () => this.requestUpdate();
+
+    connectedCallback(): void {
+        super.connectedCallback();
+        window.addEventListener('pantry-updated', this._onPantryUpdated);
+    }
+
+    disconnectedCallback(): void {
+        super.disconnectedCallback();
+        window.removeEventListener('pantry-updated', this._onPantryUpdated);
+    }
+
     /* istanbul ignore next */
     public static async getConfigElement(): Promise<LovelaceCardEditor> {
         await import('./editor');
