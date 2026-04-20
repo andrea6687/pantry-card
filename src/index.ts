@@ -53,9 +53,9 @@ export default class PantryCard extends LitElement {
     set hass(hass: HomeAssistant) {
         this._hass = hass;
         if (!this.config) return;
-        this.config = { ...this.config, hass };
 
         if (!this.card) {
+            this.config = { ...this.config, hass };
             switch (this.config.card_type) {
                 case PantryCardType.Pantry:
                     this.card = new PantryList(this);
@@ -66,13 +66,23 @@ export default class PantryCard extends LitElement {
                     break;
             }
         } else {
+            this.config.hass = hass;
             this.card.hass = hass;
             this.card.config = this.config;
         }
     }
 
     protected shouldUpdate(changedProps: PropertyValues): boolean {
-        return changedProps.has('_hass') || changedProps.has('config') || changedProps.has('card');
+        if (changedProps.has('card') || changedProps.has('config')) return true;
+        if (changedProps.has('_hass')) {
+            const oldHass = changedProps.get('_hass') as HomeAssistant | undefined;
+            if (!oldHass) return true;
+            /* ri-renderizza solo se cambia lo stato del barcode entity */
+            const entity = this.config?.barcode_entity;
+            if (!entity) return false;
+            return oldHass.states[entity]?.state !== this._hass?.states[entity]?.state;
+        }
+        return false;
     }
 
     static get styles(): CSSResult {
