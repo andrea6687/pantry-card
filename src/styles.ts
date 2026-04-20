@@ -390,4 +390,63 @@ export const styles = css`
     }
     .qty-btn:active { background: var(--primary-color, #03a9f4); color: white; }
     .qty-value { min-width: 24px; text-align: center; font-weight: bold; font-size: 1em; color: var(--primary-text-color); }
+
+    /* ── Batch mode ── */
+    .batch-mode { padding: 4px 0; }
+    .batch-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 12px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid var(--divider-color);
+        font-weight: 600;
+    }
+    .batch-header span { flex: 1; }
+    .batch-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+    .manual-input {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+    .manual-input .form-input { flex: 1; }
+    .batch-queue {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 12px;
+        max-height: 320px;
+        overflow-y: auto;
+    }
+    .queue-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        background: var(--secondary-background-color);
+        border-radius: 8px;
+    }
+    .queue-item.queue-error { background: var(--pantry-warning-bg); }
+    .queue-thumb { width: 36px; height: 36px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
+    .queue-icon { --mdc-icon-size: 32px; color: var(--secondary-text-color); flex-shrink: 0; }
+    .queue-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .queue-name { font-size: 0.9em; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .queue-name.error { color: var(--pantry-warning); }
+    .queue-brand { font-size: 0.78em; color: var(--secondary-text-color); }
+    .batch-import-row { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+    .batch-failed { font-size: 0.85em; color: var(--pantry-warning); }
+    .batch-empty { text-align: center; color: var(--secondary-text-color); padding: 16px; font-size: 0.88em; line-height: 1.5; }
+    .batch-toggle-row { display: flex; justify-content: center; margin-top: 8px; }
+
+    /* ── Item inline edit ── */
+    .edit-btn { --mdc-icon-size: 18px; flex-shrink: 0; color: var(--secondary-text-color); }
+    .item-edit-panel {
+        margin-top: 8px;
+        padding: 10px;
+        background: var(--secondary-background-color);
+        border-radius: 8px;
+        border-left: 3px solid var(--primary-color, #03a9f4);
+    }
+    .item-edit-panel .form-grid { margin-bottom: 10px; }
 `;
