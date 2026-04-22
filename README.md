@@ -15,7 +15,8 @@
 
 # Documentazione in Italiano
 
-Gestore intelligente della dispensa per Home Assistant. Scansiona i codici a barre con la fotocamera del telefono, recupera automaticamente i dati dei prodotti da [Open Food Facts](https://world.openfoodfacts.org/), tieni traccia delle scadenze, gestisci le quantità e ricevi notifiche prima che il cibo scada.
+Gestore intelligente della dispensa per Home Assistant. Scansiona i codici a barre con la fotocamera del telefono, recupera automaticamente i dati dei prodotti da [Open Food Facts](https://world.openfoodfacts.org/), tieni traccia delle scadenze, gestisci le quantità e ricevi notifiche prima che il cibo scada. 
+N.B. trattandosi di progetto gratuito e no-profit, Open Food Facts potrebbe non avere a disposizione tutti i prodotti presenti sul mercato. 
 
 > **I dati sono salvati direttamente nel database di Home Assistant** e sono condivisi su tutti i dispositivi collegati alla stessa istanza HA — nessuna configurazione aggiuntiva richiesta.
 
@@ -460,6 +461,7 @@ MIT License — vedi [LICENSE](LICENSE) per i dettagli.
 # English Documentation
 
 A smart pantry manager for Home Assistant. Scan barcodes with your phone camera, fetch product data automatically from [Open Food Facts](https://world.openfoodfacts.org/), track expiry dates, manage quantities, and get notified before food expires.
+Please note: as this is a free, non-profit project, Open Food Facts may not have all products available on the market.
 
 > **Data is stored in Home Assistant's own database** and shared across all devices connected to the same HA instance — no extra setup required.
 
