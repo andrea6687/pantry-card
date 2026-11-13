@@ -1,2 +1,30 @@
 node_modules/
 *.js.map
+
+# Local environment (keep a committed example)
+.env
+.env.*
+!.env.example
+
+# Local editor and agent settings.
+# .cursor/ has no tracked shared files, so the whole directory stays private.
+.claude/settings.local.json
+.cursor/
+
+# Local MCP config and agent notes
+.mcp.json
+mcp.json
+CLAUDE.local.md
+
+# Private keys and credentials
+*.pem
+*.p8
+*.p12
+*.key
+id_rsa
+id_ed25519
+.netrc
+credentials.json
+
+# macOS
+.DS_Store
