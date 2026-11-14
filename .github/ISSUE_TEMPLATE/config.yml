@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem / Problema di sicurezza
+    url: https://github.com/andrea6687/pantry-card/security/advisories/new
+    about: Report it privately, please. / Segnalalo in privato, per favore.
+  - name: Installation / Installazione
+    url: https://github.com/andrea6687/pantry-card/blob/main/README.md#quick-install
+    about: HACS and manual setup. / Installazione con HACS o a mano.

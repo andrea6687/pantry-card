@@ -1,0 +1,54 @@
+name: Bug report / Segnala un problema
+description: Something doesn't work as expected. / Qualcosa non funziona come previsto.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please remove tokens, passwords and private addresses before posting.
+        Grazie per la segnalazione! Togli token, password e indirizzi privati prima di pubblicare.
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version / Versione di Home Assistant
+      placeholder: "e.g. 2026.4.1"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser / Dispositivo e browser
+      placeholder: "e.g. Pixel 8, Home Assistant app; iPhone 15, Safari"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed the card / Come hai installato la card
+      options:
+        - HACS
+        - Manual / Manuale
+        - Not sure / Non so
+    validations:
+      required: true
+  - type: dropdown
+    id: card
+    attributes:
+      label: Which card / Quale card
+      options:
+        - Scanner
+        - Pantry list / Lista dispensa
+        - Both / Entrambe
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What you tapped, what happened, and what you expected / Cosa hai toccato, cosa è successo e cosa ti aspettavi
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot (optional) / Screenshot (facoltativo)
+      description: Drag an image here. / Trascina qui un'immagine.

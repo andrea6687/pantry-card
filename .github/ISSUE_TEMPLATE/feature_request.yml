@@ -1,0 +1,24 @@
+name: Idea / Proposta
+description: Suggest an improvement. / Proponi un miglioramento.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve? / Quale problema risolverebbe?
+      description: For example a product you can't add, or an expiry warning that doesn't match how you shop. / Per esempio un prodotto che non riesci ad aggiungere, o un avviso di scadenza che non coincide con come fai la spesa.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea / La tua idea
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This is about my own pantry in Home Assistant, not scraping Open Food Facts or collecting product data. / Riguarda la mia dispensa in Home Assistant, non lo scraping di Open Food Facts o la raccolta di dati.
+          required: true
